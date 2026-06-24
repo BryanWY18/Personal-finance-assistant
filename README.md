@@ -33,10 +33,10 @@ La especificación completa, incluyendo los 25 criterios de aceptación en forma
 
 ## Stack
 
--Next.js
--Python
--Postgresql
--n8n
+- Next.js
+- Python
+- PostgreSQL
+- n8n
 
 ## Licencia
 
