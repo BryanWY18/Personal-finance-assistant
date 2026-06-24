@@ -1,4 +1,4 @@
-# ADR 0002: Autenticación — sesiones server-side
+# ADR 0002: Autenticación — JWT validado en middleware de Next.js
 
 ## Estado
 
@@ -6,30 +6,34 @@ Aceptado
 
 ## Contexto
 
-El criterio #3 exige que el logout invalide la sesión de inmediato y que
-las rutas protegidas dejen de ser accesibles en el acto. Un JWT
-stateless no puede revocarse antes de su expiración natural sin mantener
-una blocklist, lo que contradice la simplicidad buscada para el alcance
-del proyecto (un usuario por cuenta, sin requisitos de escala).
+La spec exige login con email/contraseña con reglas de complejidad
+(#1), y que el logout invalide la sesión de inmediato y bloquee rutas
+protegidas en el acto (#3). El stack (`AGENTS.md`) separa Next.js 15
+(App Router) como frontend y FastAPI como backend.
 
 ## Decisión
 
-- Autenticación por email + contraseña (hash con bcrypt o argon2).
-- Sesiones server-side: tabla `Session` en PostgreSQL (token opaco,
-  `user_id`, `expires_at`). La cookie del navegador es httpOnly y solo
-  contiene el identificador de sesión, nunca datos del usuario.
-- Logout = borrar la fila de `Session`. Cualquier request posterior con
-  esa cookie deja de resolver a un usuario válido.
-- Sin password reset ni verificación de email en este alcance (no-goals,
-  confirmado).
+- FastAPI emite, al login exitoso, un JWT firmado con id de usuario,
+  email y expiración corta.
+- Next.js guarda el JWT en una cookie httpOnly y usa middleware (Edge)
+  para verificar firma y expiración en cada request a ruta protegida,
+  sin llamar a FastAPI para esa verificación.
+- FastAPI vuelve a verificar la firma del JWT en cada endpoint de su
+  API.
+- Para cumplir el criterio #3 (logout invalida de inmediato), la
+  expiración del JWT debe ser corta y debe existir un mecanismo de
+  invalidación (denylist mínima o refresh de corta vida); el diseño
+  concreto de ese mecanismo es detalle de implementación, pero la
+  arquitectura exige que exista.
 
 ## Consecuencias
 
-- Cada request autenticado implica una consulta a `Session` en
-  Postgres — costo aceptable dado el volumen esperado (un usuario, bajo
-  tráfico).
-- Revocación de sesión es inmediata y total, cumpliendo el criterio #3
-  sin lógica adicional de blocklist.
-- Si el proyecto escala a mayor tráfico, esta decisión debería
-  revisarse (cache de sesión, JWT con blocklist, etc.) — fuera del
-  alcance actual.
+- Valida sesión en el edge sin round-trip a FastAPI en cada
+  navegación protegida, reduciendo latencia percibida.
+- Requiere mantener sincronizada la clave de firma (o par de llaves)
+  entre Next.js y FastAPI.
+- El logout inmediato no es gratis con JWT puro: exige expiración
+  corta y/o lista de revocación, lo que reintroduce parte del estado
+  que un JWT busca evitar — aceptado como costo de esta decisión.
+- Mayor curva de aprendizaje inicial (firma, expiración, revocación)
+  frente a una sesión server-side simple.

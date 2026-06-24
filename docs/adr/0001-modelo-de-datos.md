@@ -1,4 +1,4 @@
-# ADR 0001: Modelo de datos — tipo de transacción snapshotted en Record
+# ADR 0001: Modelo de datos — tipo de registro derivado de la categoría
 
 ## Estado
 
@@ -6,35 +6,34 @@ Aceptado
 
 ## Contexto
 
-El spec (criterios #20, #25) requiere separar gastos e ingresos y calcular
-un balance neto en estadísticas. "Ingresos" es una categoría fija más, y
-las categorías personalizadas necesitan declarar si son de tipo ingreso o
-gasto. El criterio #21 establece que al borrar una categoría personalizada
-con registros asociados, esos registros se reasignan a la categoría fija
-"Sin categoría" (tipo gasto). Si el tipo de un registro se derivara siempre
-en vivo desde su categoría actual, ese borrado distorsionaría
-retroactivamente las estadísticas históricas: un ingreso pasado pasaría a
-contar como gasto.
+La spec (criterios #18, #19, #25) define "Ingresos" como una categoría
+fija más, junto con Comida, Transporte, Vivienda, Entretenimiento y
+Sin categoría. Las categorías personalizadas se crean con nombre único
+(#19) pero la spec no contempla que el usuario les asigne un tipo: hoy
+la única categoría de tipo ingreso es la fija "Ingresos". La vista de
+estadísticas exige separar gastos e ingresos y calcular balance neto
+(#25), y al borrar una categoría personalizada con registros asociados
+esos registros se reasignan a "Sin categoría" (#21).
 
 ## Decisión
 
-- Cada `Category` (fija o personalizada) tiene un campo `tipo`
-  (`ingreso` | `gasto`). Categorías fijas tipo `gasto`: Comida,
-  Transporte, Vivienda, Entretenimiento, Sin categoría. La única fija
-  tipo `ingreso`: Ingresos. Al crear una categoría personalizada, el
-  usuario elige su tipo.
-- Cada `Record` guarda su propio campo `tipo`, copiado de
-  `category.tipo` en el momento de la creación del registro. Las
-  estadísticas siempre usan el `tipo` del registro, nunca el de la
-  categoría actual.
-- Entidades: `User`, `Category`, `Record`, `TelegramLinkCode` (detalle
-  de campos en `spec.md` y `AGENTS.md`).
+- `Record` no tiene campo `tipo`. El tipo de un registro se infiere de
+  su `categoria_id`: si la categoría es la fija "Ingresos" (id
+  reservado, no editable desde la web — #18), el registro es ingreso;
+  cualquier otra categoría (fija o personalizada) es gasto.
+- Las queries de estadísticas que separan ingresos de gastos filtran
+  por ese id reservado de "Ingresos".
+- Al borrar una categoría personalizada con registros asociados (#21),
+  los registros se reasignan a `categoria_id` = "Sin categoría" y
+  automáticamente pasan a comportarse como gasto, sin tocar ningún
+  otro campo.
 
 ## Consecuencias
 
-- Pequeña redundancia de datos (`tipo` vive en dos lugares), pero el
-  balance neto histórico no se distorsiona si se borra o reclasifica
-  una categoría.
-- Si el tipo de una categoría cambia después de creada (no contemplado
-  en el spec actual), los registros existentes no se actualizan
-  automáticamente — comportamiento esperado, no un bug.
+- Evita una columna redundante y el riesgo de que `categoria_id` y un
+  campo `tipo` queden desincronizados.
+- Toda query que separe gastos/ingresos depende de que el id de la
+  categoría "Ingresos" sea estable y esa categoría no sea borrable.
+- Si en el futuro se permite que una categoría personalizada sea de
+  tipo ingreso (no contemplado en la spec actual), esta decisión
+  requiere revisión y probablemente migración estructural.
