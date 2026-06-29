@@ -23,9 +23,10 @@ servicio y avisar su recuperación (#14, #15).
 - FastAPI valida el `user_id` de Telegram contra el usuario vinculado,
   aplica las mismas reglas de validación que el CRUD web, y escribe el
   registro.
-- El manejo de caída de servicio (#14, #15) se implementa como un
-  health-check de n8n contra el endpoint de FastAPI, sin que n8n
-  necesite conocer el estado de Postgres directamente.
+- El manejo de caída de servicio (#14, #15) no se decide en esta ADR:
+  queda definido en ADR-0005 (detección reactiva, sin health-check
+  programado), que prevalece sobre cualquier mención previa a un
+  mecanismo de health-check en este documento.
 
 ## Consecuencias
 
