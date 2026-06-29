@@ -13,7 +13,7 @@ protegidas en el acto (#3). El stack (`AGENTS.md`) separa Next.js 15
 
 ## Decisión
 
-- FastAPI emite, al login exitoso, un JWT firmado con id de usuario,
+- FastAPI emite, al login o registro exitoso, un JWT firmado con id de usuario,
   email y expiración corta.
 - Next.js guarda el JWT en una cookie httpOnly y usa middleware (Edge)
   para verificar firma y expiración en cada request a ruta protegida,
